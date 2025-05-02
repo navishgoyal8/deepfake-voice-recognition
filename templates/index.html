@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deepfake Voice Detector</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #dfe9f3, #ffffff);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            transition: all 0.3s ease-in-out;
+        }
+
+        h1 {
+            color: #1a237e;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .input-container {
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            border-radius: 6px;
+            border: 2px dashed #90caf9;
+            width: 100%;
+            background-color: #f1f8ff;
+            cursor: pointer;
+        }
+
+        audio {
+            margin-top: 15px;
+            width: 100%;
+            border-radius: 6px;
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0c56c1;
+        }
+
+        .spinner {
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 8px;
+            transition: 0.3s ease;
+        }
+
+        .real {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .fake {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .error {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .tooltip {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Deepfake Voice Detector</h1>
+
+        <div class="input-container">
+            <input type="file" id="audioInput" accept="audio/*" onchange="previewAudio(event)">
+            <div class="tooltip">Supported formats: .mp3, .wav, etc.</div>
+        </div>
+
+        <audio id="audioPlayer" controls style="display: none;"></audio>
+
+        <button id="detectButton" onclick="submitAudio()">🔍 Analyze Audio</button>
+
+        <div class="spinner" id="audioSpinner"></div>
+
+        <div class="result" id="detectionResult"></div>
+    </div>
+
+    <script>
+        function previewAudio(event) {
+            const audioInput = document.getElementById('audioInput');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const file = audioInput.files[0];
+
+            if (file) {
+                const url = URL.createObjectURL(file);
+                audioPlayer.src = url;
+                audioPlayer.style.display = 'block';
+            }
+        }
+
+        function submitAudio() {
+            const audioInput = document.getElementById('audioInput');
+            const audioSpinner = document.getElementById('audioSpinner');
+            const detectionResult = document.getElementById('detectionResult');
+            const detectButton = document.getElementById('detectButton');
+
+            const file = audioInput.files[0];
+            if (!file) {
+                alert("Please upload an audio file.");
+                return;
+            }
+
+            detectionResult.className = 'result';
+            detectionResult.innerHTML = '';
+            audioSpinner.style.display = 'block';
+            detectButton.disabled = true;
+            detectButton.innerText = 'Analyzing...';
+
+            const formData = new FormData();
+            formData.append('audio', file);
+
+            fetch('http://127.0.0.1:5000/predict', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    audioSpinner.style.display = 'none';
+                    detectButton.disabled = false;
+                    detectButton.innerText = '🔍 Analyze Audio';
+
+                    if (data.error) {
+                        detectionResult.className = 'result error';
+                        detectionResult.innerHTML = data.error;
+                    } else {
+                        const resultClass = data.prediction.toLowerCase();
+                        detectionResult.className = `result ${resultClass}`;
+                        const confidencePercent = Math.round(data.confidence * 100);
+                        detectionResult.innerHTML = `🧠 <strong>Prediction:</strong> ${data.prediction}<br>📈 <strong>Confidence:</strong> ${confidencePercent}%`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    audioSpinner.style.display = 'none';
+                    detectButton.disabled = false;
+                    detectButton.innerText = '🔍 Analyze Audio';
+                    detectionResult.className = 'result error';
+                    detectionResult.innerHTML = 'An error occurred. Please try again.';
+                });
+        }
+    </script>
+</body>
+
+</html>
