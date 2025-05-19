@@ -14,7 +14,7 @@ if not os.path.exists('uploads'):
     os.makedirs('uploads')
 
 # Load model only once when the app starts
-model = tf.keras.models.load_model('models/deepfake_voice_model_new.h5')
+model = tf.keras.models.load_model('models/my_model.h5')
 max_length = 56239  # Adjust this based on your model's expected input length
 
 def preprocess_audio(audio_path, max_length):
